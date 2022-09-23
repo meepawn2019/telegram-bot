@@ -27,21 +27,29 @@ bot.on(["/start"], async (msg) => {
   if (!user) {
     return bot.sendMessage(
       msg.from.id,
-      "You are not logged in, please use /login command to login",
+      "You are not logged in, please use /login username||password command to login",
       { parseMode: "HTML" },
     );
   }
-  const listCommand = `
-    <b>/start</b> - Start command to get you start.
+  const listCommand = `<b>/start</b> - Start command to get you start.
   <b>/categories</b> - List category of blog.
   <b>/posts</b> - List posts of blog.
-  <b>/logut</b> - Logout command to de-active session.
-  <b>/help</b> - Type help to list all command
-  `;
+  <b>/logout</b> - Logout command to de-active session.
+  <b>/help</b> - Type help to list all command`;
   bot.sendMessage(msg.from.id, listCommand, { parseMode: "HTML" });
   db.close();
   return;
 });
+
+bot.on(['/help'], (msg) => {
+  const listCommand = `<b>/start</b> - Start command to get you start.
+  <b>/categories</b> - List category of blog.
+  <b>/posts</b> - List posts of blog.
+  <b>/logout</b> - Logout command to de-active session.
+  <b>/help</b> - Type help to list all command`;
+  return bot.sendMessage(msg.from.id, listCommand, { parseMode: "HTML" });
+
+})
 
 bot.on(["/logout"], async (msg) => {
   await bot.sendMessage(msg.from.id, "Logging out...")
