@@ -1,13 +1,35 @@
 const fetch = (...args) =>  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 import TeleBot from "telebot";
 import sqlite3 from "sqlite3";
-import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
+import * as dotenv from "dotenv";
+import { JsonDB, Config } from "node-json-db";
 dotenv.config();
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+var jsondb = new JsonDB(new Config("telegrambot", true, false, "/"));
 
 const bot = new TeleBot(TOKEN);
 
 import { open } from "sqlite";
+
+bot.on("text", async (msg) => {
+  if (msg.reply_to_message && msg.reply_to_message.text === "Title:") {
+    // add title to jsondb
+    jsondb.push(`/${msg.from.id}/title`, msg.text);
+  }
+  if (msg.reply_to_message && msg.reply_to_message.text === "Description:") {
+    // add description to jsondb
+    jsondb.push(`/${msg.from.id}/description`, msg.text);
+  }
+  if (msg.reply_to_message && msg.reply_to_message.text === "Category ID:") {
+    // add link to jsondb
+    jsondb.push(`/${msg.from.id}/category-id`, msg.text);
+  }
+  if (msg.reply_to_message && msg.reply_to_message.text === "Blog ID:") {
+    // add image to jsondb
+    jsondb.push(`/${msg.from.id}/blog-id`, msg.text);
+  }
+});
 
 bot.on(["/start"], async (msg) => {
   // find user in database with telegram_id
@@ -31,43 +53,109 @@ bot.on(["/start"], async (msg) => {
       { parseMode: "HTML" },
     );
   }
-  const listCommand = `<b>/start</b> - Start command to get you start.
-  <b>/categories</b> - List category of blog.
-  <b>/posts</b> - List posts of blog.
-  <b>/logout</b> - Logout command to de-active session.
-  <b>/help</b> - Type help to list all command`;
-  bot.sendMessage(msg.from.id, listCommand, { parseMode: "HTML" });
+  const replyMarkup = bot.inlineKeyboard([
+    [
+      bot.inlineButton("Get data", {
+        callback: JSON.stringify({ type: "start", userId: user.user_id }),
+      }),
+    ],
+  ]);
+
+  // const listCommand = `<b>/start</b> - Start command to get you start.
+  // <b>/categories</b> - List category of blog.
+  // <b>/posts</b> - List posts of blog.
+  // <b>/logout</b> - Logout command to de-active session.
+  // <b>/help</b> - Type help to list all command`;
+  // bot.sendMessage(msg.from.id, listCommand, { parseMode: "HTML" });
+
   db.close();
+  bot.sendMessage(msg.from.id, "Welcome to Kairete Bot", { replyMarkup });
   return;
 });
 
-bot.on(['/help'], (msg) => {
+bot.on(["/help"], (msg) => {
   const listCommand = `<b>/start</b> - Start command to get you start.
   <b>/categories</b> - List category of blog.
   <b>/posts</b> - List posts of blog.
   <b>/logout</b> - Logout command to de-active session.
   <b>/help</b> - Type help to list all command`;
   return bot.sendMessage(msg.from.id, listCommand, { parseMode: "HTML" });
+});
 
-})
-
-bot.on(["/logout"], async (msg) => {
-  await bot.sendMessage(msg.from.id, "Logging out...")
+bot.on(["/blogs"], async (msg) => {
   const db = await open({
     filename: "./login.db",
     driver: sqlite3.Database,
   });
-  await db.exec("DELETE FROM users WHERE telegram_id = ?", [msg.from.id.toString()]);
+  let user = null;
+  try {
+    user = await db.get("SELECT * FROM users WHERE telegram_id = ?", [
+      msg.from.id,
+    ]);
+  } catch (err) {
+    console.log(err);
+  }
+  if (!user) {
+    return bot.sendMessage(
+      msg.from.id,
+      "You are not logged in, please use /login username||password command to login",
+      { parseMode: "HTML" },
+    );
+  }
+  const replyMarkup = bot.inlineKeyboard([
+    [
+      bot.inlineButton("Post", {
+        callback: JSON.stringify({ type: "post", userId: user.user_id }),
+      }),
+    ],
+    [
+      bot.inlineButton("Title", {
+        callback: JSON.stringify({ type: "blog-title", userId: user.user_id }),
+      }),
+      bot.inlineButton("Message", {
+        callback: JSON.stringify({
+          type: "blog-description",
+          userId: user.user_id,
+        }),
+      }),
+    ],
+    [
+      bot.inlineButton("Category ID", {
+        callback: JSON.stringify({
+          type: "blog-category",
+          userId: user.user_id,
+        }),
+      }),
+      bot.inlineButton("Blog ID", {
+        callback: JSON.stringify({ type: "blog-id", userId: user.user_id }),
+      }),
+    ],
+  ]);
+  return bot.sendMessage(msg.from.id, "Create your blog entry", {
+    replyMarkup,
+  });
+});
+
+bot.on(["/logout"], async (msg) => {
+  await bot.sendMessage(msg.from.id, "Logging out...");
+  const db = await open({
+    filename: "./login.db",
+    driver: sqlite3.Database,
+  });
+  const query = `DELETE FROM users WHERE telegram_id = ${msg.from.id}`;
+  await db.run(query);
   await db.close();
   return bot.sendMessage(msg.from.id, "Logged out");
-})
+});
 
 bot.on(["/categories"], async (msg) => {
   const db = await open({
     filename: "./login.db",
     driver: sqlite3.Database,
   });
-  const user = await db.get('SELECT * FROM users WHERE telegram_id = ?', [msg.from.id]);
+  const user = await db.get("SELECT * FROM users WHERE telegram_id = ?", [
+    msg.from.id,
+  ]);
   const category = await fetch("https://kairete.net/api/blog-categories", {
     method: "GET",
     headers: {
@@ -118,9 +206,13 @@ bot.on(["/categories"], async (msg) => {
         ];
       }
     }),
-    [bot.inlineButton("All", { callback: {categoriId: -1, userId: user.user_id} })],
+    [
+      bot.inlineButton("All", {
+        callback: { categoriId: -1, userId: user.user_id },
+      }),
+    ],
   ]);
-  db.close()
+  db.close();
   return bot.sendMessage(msg.from.id, "Choose category:", { replyMarkup });
 });
 
@@ -171,35 +263,115 @@ bot.on(["/login"], async (msg) => {
 
 bot.on("callbackQuery", async (msg) => {
   const msgData = JSON.parse(msg.data);
-  let params = {};
-  if (msgData.categoryId === -1) {
-    // get all category
-    const category = await fetch("https://kairete.net/api/blog-categories", {
+  if (msgData.type === "blog-title") {
+    return bot.sendMessage(msg.from.id, "Title:", {
+      replyMarkup: { force_reply: true },
+    });
+  }
+  if (msgData.type === "blog-description") {
+    return bot.sendMessage(msg.from.id, "Description:", {
+      replyMarkup: { force_reply: true },
+    });
+  }
+  if (msgData.type === "blog-category") {
+    return bot.sendMessage(msg.from.id, "Category ID:", {
+      replyMarkup: { force_reply: true },
+    });
+  }
+  if (msgData.type === "blog-id") {
+    return bot.sendMessage(msg.from.id, "Blog ID:", {
+      replyMarkup: { force_reply: true },
+    });
+  }
+  if (msgData.type === "post") {
+    const user_telegram_id = msg.from.id;
+    // get data from jsondb
+    const title = await jsondb.getData(`/${user_telegram_id}/title`);
+    const description = await jsondb.getData(
+      `/${user_telegram_id}/description`,
+    );
+    const category_id = await jsondb.getData(`/${user_telegram_id}/category-id`);
+    const blog_id = await jsondb.getData(`/${user_telegram_id}/blog-id`);
+    const formData = new URLSearchParams();
+    formData.append("title", title);
+    formData.append("message", description);
+    formData.append("category_id", category_id);
+    formData.append("blog_id", blog_id);
+    formData.append("user_id", msgData.userId);
+    try {
+      const request = await fetch("https://www.kairete.net/api/blog-entries", {
+        method: "POST",
+        headers: {
+          "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
+          "XF-Api-User": msgData.userId,
+        },
+        body: formData,
+      });
+      const requestJSON = await request.json();
+      if (requestJSON.errors) {
+        return bot.sendMessage(msg.from.id, requestJSON.errors[0].message);
+      }
+      await jsondb.delete(`/${user_telegram_id}`);
+      return bot.sendMessage(msg.from.id, 'Posted!');
+    } catch (err) {
+      console.log(err);
+      return bot.sendMessage(
+        msg.from.id,
+        "Error posting blog, Please check your content",
+      );
+    }
+  }
+  if (msgData.type === "start") {
+    const params = new URLSearchParams();
+    params.append("category_ids[0]", 2);
+    params.append("category_ids[1]", 3);
+    params.append("category_ids[2]", 5);
+    const data = await fetch(`https://kairete.net/api/blog-entries?${params}`, {
       method: "GET",
       headers: {
         "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
         "XF-Api-User": msgData.userId,
       },
     });
-    if (category.errors)
-      return bot.sendMessage(msg.from.id, "Error category API");
-    const categoryJSON = await category.json();
-    let { categories } = categoryJSON;
-    categories = categories.map((category) => {
+    const dataJSON = await data.json();
+    let sendData = dataJSON["blogEntryItems"].slice(0, 10).map((item) => {
       return {
-        id: category.category_id,
-        name: category.title,
+        title: item?.title,
+        thumbnail: item?.CoverImage?.thumbnail_url,
+        content: item?.message_plain_text,
+        url: item?.view_url,
       };
     });
-    categories.forEach((category, index) => {
-      params[`category_ids[${index}]`] = category.id;
-    });
-  } else {
+    // send message to user multiple message combine each object in 1 message
+    for await (const item of sendData) {
+      try {
+        const replyMarkup = bot.inlineKeyboard([
+          [bot.inlineButton("Read more", { url: item.url })],
+        ]);
+        await bot.sendPhoto(msg.from.id, item.thumbnail, {
+          caption: item.title,
+        });
+        await bot.sendMessage(
+          msg.from.id,
+          `${item.title}
+    
+    ${item.content.slice(0, 300)}`,
+          {
+            replyMarkup,
+          },
+        );
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  }
+  let params = {};
+  if (msgData.categoryId !== -1) {
+    // get all category
     params["category_ids[0]"] = msgData.categoryId;
   }
   // User message alert
   const searchParams = new URLSearchParams(params);
-  console.log(searchParams);
   const data = await fetch(
     `https://www.kairete.net/api/blog-entries?${searchParams}`,
     {
@@ -260,10 +432,4 @@ bot.on("inlineQuery", (msg) => {
   return bot.answerQuery(answers);
 });
 
-bot.start({
-  webhook: {
-    host: '0.0.0.0',
-    port: 3000,
-    url: 'telegrambot-meepawn2019.koyeb.app/',
-  }
-});
+bot.start();
