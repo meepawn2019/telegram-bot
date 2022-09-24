@@ -12,6 +12,19 @@ const bot = new TeleBot(TOKEN);
 
 import { open } from "sqlite";
 
+const isAllPostFieldsFilled = async (telegram_id) => {
+  try {
+    const title = await jsondb.getData(`/${telegram_id}/title`);
+    const description = await jsondb.getData(`/${telegram_id}/description`);
+    const category_id = await jsondb.getData(`/${telegram_id}/category-id`);
+    const blog_id = await jsondb.getData(`/${telegram_id}/blog-id`);
+    console.log({ title, description, category_id, blog_id });
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
 bot.on("text", async (msg) => {
   if (msg.reply_to_message && msg.reply_to_message.text === "Title:") {
     // add title to jsondb
@@ -28,6 +41,14 @@ bot.on("text", async (msg) => {
   if (msg.reply_to_message && msg.reply_to_message.text === "Blog ID:") {
     // add image to jsondb
     jsondb.push(`/${msg.from.id}/blog-id`, msg.text);
+  }
+  if (await isAllPostFieldsFilled(msg.from.id)) {
+    const replyMarkup = bot.inlineKeyboard([
+      [
+        bot.inlineButton("Publish", { callback: JSON.stringify({type: 'post'}) }),
+      ],
+    ]);
+    bot.sendMessage(msg.from.id, "Click to post blog", { replyMarkup });
   }
 });
 
@@ -82,7 +103,7 @@ bot.on(["/help"], (msg) => {
   return bot.sendMessage(msg.from.id, listCommand, { parseMode: "HTML" });
 });
 
-bot.on(["/blogs"], async (msg) => {
+bot.on(["/posts"], async (msg) => {
   const db = await open({
     filename: "./login.db",
     driver: sqlite3.Database,
