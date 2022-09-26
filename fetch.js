@@ -1,5 +1,4 @@
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-const FormData = require('form-data');
 
 const getData = async () => {
   // fetch data with form data and return it
