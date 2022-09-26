@@ -42,7 +42,7 @@ bot.on("text", async (msg) => {
     // add image to jsondb
     jsondb.push(`/${msg.from.id}/blog-id`, msg.text);
   }
-  if (await isAllPostFieldsFilled(msg.from.id)) {
+  if (await isAllPostFieldsFilled(msg.from.id) && !msg.text.startsWith('/')) {
     const replyMarkup = bot.inlineKeyboard([
       [
         bot.inlineButton("Publish", { callback: JSON.stringify({type: 'post'}) }),
@@ -318,13 +318,13 @@ bot.on("callbackQuery", async (msg) => {
     formData.append("message", description);
     formData.append("category_id", category_id);
     formData.append("blog_id", blog_id);
-    formData.append("user_id", msgData.userId);
+    formData.append("user_id", 1);
     try {
       const request = await fetch("https://www.kairete.net/api/blog-entries", {
         method: "POST",
         headers: {
           "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
-          "XF-Api-User": msgData.userId,
+          "XF-Api-User": 1,
         },
         body: formData,
       });
