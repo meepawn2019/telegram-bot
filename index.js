@@ -4,7 +4,7 @@ import sqlite3 from "sqlite3";
 import * as dotenv from "dotenv";
 import { JsonDB, Config } from "node-json-db";
 dotenv.config();
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TOKEN = "5422271134:AAFWZ53ojsZ2p8Ym7u-eLbplUB1zZbsrefs";
 
 var jsondb = new JsonDB(new Config("telegrambot", true, false, "/"));
 
