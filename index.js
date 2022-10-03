@@ -1,4 +1,5 @@
-const fetch = (...args) =>  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 import TeleBot from "telebot";
 import sqlite3 from "sqlite3";
 import * as dotenv from "dotenv";
@@ -42,10 +43,12 @@ bot.on("text", async (msg) => {
     // add image to jsondb
     jsondb.push(`/${msg.from.id}/blog-id`, msg.text);
   }
-  if (await isAllPostFieldsFilled(msg.from.id) && !msg.text.startsWith('/')) {
+  if ((await isAllPostFieldsFilled(msg.from.id)) && !msg.text.startsWith("/")) {
     const replyMarkup = bot.inlineKeyboard([
       [
-        bot.inlineButton("Publish", { callback: JSON.stringify({type: 'post'}) }),
+        bot.inlineButton("Publish", {
+          callback: JSON.stringify({ type: "post" }),
+        }),
       ],
     ]);
     bot.sendMessage(msg.from.id, "Click to post blog", { replyMarkup });
@@ -71,7 +74,7 @@ bot.on(["/start"], async (msg) => {
     return bot.sendMessage(
       msg.from.id,
       "You are not logged in, please use /login username||password command to login",
-      { parseMode: "HTML" },
+      { parseMode: "HTML" }
     );
   }
   const replyMarkup = bot.inlineKeyboard([
@@ -120,7 +123,7 @@ bot.on(["/posts"], async (msg) => {
     return bot.sendMessage(
       msg.from.id,
       "You are not logged in, please use /login username||password command to login",
-      { parseMode: "HTML" },
+      { parseMode: "HTML" }
     );
   }
   const replyMarkup = bot.inlineKeyboard([
@@ -261,13 +264,13 @@ bot.on(["/login"], async (msg) => {
   const dataJSON = await data.json();
   const user = await db.get(
     "SELECT * FROM users WHERE user_id = ? AND telegram_id = ?",
-    [dataJSON.user.user_id, msg.from.id],
+    [dataJSON.user.user_id, msg.from.id]
   );
   if (user) {
     await db.close();
-    return bot.sendMessage(
+    bot.sendMessage(
       msg.from.id,
-      `Welcome ${username}!, your tele_id is ${msg.from.id}}`,
+      `Welcome ${username}!, your tele_id is ${msg.from.id}}`
     );
   } else {
     await db.run("INSERT INTO users (user_id, telegram_id) VALUES (?, ?)", [
@@ -275,11 +278,57 @@ bot.on(["/login"], async (msg) => {
       msg.from.id,
     ]);
     await db.close();
-    return bot.sendMessage(
+    bot.sendMessage(
       msg.from.id,
-      `Welcome ${username}!, your tele_id is ${msg.from.id}`,
+      `Welcome ${username}!, your tele_id is ${msg.from.id}`
     );
   }
+  const params = new URLSearchParams();
+  params.append("category_ids[0]", 2);
+  params.append("category_ids[1]", 3);
+  params.append("category_ids[2]", 5);
+  const dataEntry = await fetch(
+    `https://kairete.net/api/blog-entries?${params}`,
+    {
+      method: "GET",
+      headers: {
+        "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
+        "XF-Api-User": msgData.userId,
+      },
+    }
+  );
+  const dataEntryJSON = await dataEntry.json();
+  let sendData = dataEntryJSON["blogEntryItems"].slice(0, 10).map((item) => {
+    return {
+      title: item?.title,
+      thumbnail: item?.CoverImage?.thumbnail_url,
+      content: item?.message_plain_text,
+      url: item?.view_url,
+    };
+  });
+  // send message to user multiple message combine each object in 1 message
+  for await (const item of sendData) {
+    try {
+      const replyMarkup = bot.inlineKeyboard([
+        [bot.inlineButton("Read more", { url: item.url })],
+      ]);
+      await bot.sendPhoto(msg.from.id, item.thumbnail, {
+        caption: item.title,
+      });
+      await bot.sendMessage(
+        msg.from.id,
+        `${item.title}
+  
+  ${item.content.slice(0, 300)}`,
+        {
+          replyMarkup,
+        }
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  return;
 });
 
 bot.on("callbackQuery", async (msg) => {
@@ -309,9 +358,11 @@ bot.on("callbackQuery", async (msg) => {
     // get data from jsondb
     const title = await jsondb.getData(`/${user_telegram_id}/title`);
     const description = await jsondb.getData(
-      `/${user_telegram_id}/description`,
+      `/${user_telegram_id}/description`
     );
-    const category_id = await jsondb.getData(`/${user_telegram_id}/category-id`);
+    const category_id = await jsondb.getData(
+      `/${user_telegram_id}/category-id`
+    );
     const blog_id = await jsondb.getData(`/${user_telegram_id}/blog-id`);
     const formData = new URLSearchParams();
     formData.append("title", title);
@@ -333,12 +384,12 @@ bot.on("callbackQuery", async (msg) => {
         return bot.sendMessage(msg.from.id, requestJSON.errors[0].message);
       }
       await jsondb.delete(`/${user_telegram_id}`);
-      return bot.sendMessage(msg.from.id, 'Posted!');
+      return bot.sendMessage(msg.from.id, "Posted!");
     } catch (err) {
       console.log(err);
       return bot.sendMessage(
         msg.from.id,
-        "Error posting blog, Please check your content",
+        "Error posting blog, Please check your content"
       );
     }
   }
@@ -379,7 +430,7 @@ bot.on("callbackQuery", async (msg) => {
     ${item.content.slice(0, 300)}`,
           {
             replyMarkup,
-          },
+          }
         );
       } catch (error) {
         console.log(error);
@@ -401,7 +452,7 @@ bot.on("callbackQuery", async (msg) => {
         "XF-Api-KEY": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
         "XF-API-USER": 1,
       },
-    },
+    }
   );
   if (data.errors) return bot.sendMessage(msg.from.id, "Error category API");
   const dataJSON = await data.json();
@@ -429,7 +480,7 @@ bot.on("callbackQuery", async (msg) => {
   ${item.content.slice(0, 300)}`,
         {
           replyMarkup,
-        },
+        }
       );
     } catch (error) {
       console.log(error);
@@ -451,6 +502,66 @@ bot.on("inlineQuery", (msg) => {
   });
 
   return bot.answerQuery(answers);
+});
+
+const botCron = async () => {
+  // get all users from db
+  const db = await open({
+    filename: "./login.db",
+    driver: sqlite3.Database,
+  });
+  const users = await db.all("SELECT telegram_id FROM users");
+  // send message to all users
+  const params = new URLSearchParams();
+  params.append("category_ids[0]", 2);
+  params.append("category_ids[1]", 3);
+  params.append("category_ids[2]", 5);
+  const data = await fetch(`https://kairete.net/api/blog-entries?${params}`, {
+    method: "GET",
+    headers: {
+      "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
+      "XF-Api-User": msgData.userId,
+    },
+  });
+  const dataJSON = await data.json();
+  let sendData = dataJSON["blogEntryItems"].slice(0, 10).map((item) => {
+    return {
+      title: item?.title,
+      thumbnail: item?.CoverImage?.thumbnail_url,
+      content: item?.message_plain_text,
+      url: item?.view_url,
+    };
+  });
+  // send message to user multiple message combine each object in 1 message
+  users.forEach(async (user) => {
+    for await (const item of sendData) {
+      try {
+        const replyMarkup = bot.inlineKeyboard([
+          [bot.inlineButton("Read more", { url: item.url })],
+        ]);
+        await bot.sendPhoto(user.telegram_id, item.thumbnail, {
+          caption: item.title,
+        });
+        await bot.sendMessage(
+          user.telegram_id,
+          `${item.title}
+    
+    ${item.content.slice(0, 300)}`,
+          {
+            replyMarkup,
+          }
+        );
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  });
+  return;
+};
+// run every 6am everyday Italy time
+cron.schedule("* * * * *", botCron, {
+  scheduled: true,
+  timezone: "Europe/Rome",
 });
 
 bot.start();
