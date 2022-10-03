@@ -294,7 +294,7 @@ bot.on(["/login"], async (msg) => {
       method: "GET",
       headers: {
         "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
-        "XF-Api-User": msgData.userId,
+        "XF-Api-User": dataJSON.user.user_id,
       },
     }
   );
@@ -560,7 +560,7 @@ const botCron = async () => {
   return;
 };
 // run every 6am everyday Italy time
-cron.schedule("*/5 * * * *", botCron, {
+cron.schedule("0 6 * * *", botCron, {
   scheduled: true,
   timezone: "Europe/Rome",
 });
