@@ -562,7 +562,7 @@ const botCron = async () => {
   return;
 };
 // run every 6am everyday Italy time
-cron.schedule("13 10 * * *", botCron, {
+cron.schedule("0 6 * * *", botCron, {
   scheduled: true,
   timezone: "Europe/Rome",
 });
