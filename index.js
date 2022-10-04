@@ -506,6 +506,7 @@ bot.on("inlineQuery", (msg) => {
 });
 
 const botCron = async () => {
+  console.log("Bot cron running");
   // get all users from db
   const db = await open({
     filename: "./login.db",
@@ -560,7 +561,7 @@ const botCron = async () => {
   return;
 };
 // run every 6am everyday Italy time
-cron.schedule("0 6 * * *", botCron, {
+cron.schedule("10 10 * * *", botCron, {
   scheduled: true,
   timezone: "Europe/Rome",
 });
