@@ -512,30 +512,31 @@ const botCron = async () => {
     filename: "./login.db",
     driver: sqlite3.Database,
   });
-  const users = await db.all("SELECT telegram_id FROM users");
+  const users = await db.all("SELECT * FROM users");
+  console.log(users);
   // send message to all users
   const params = new URLSearchParams();
   params.append("category_ids[0]", 2);
   params.append("category_ids[1]", 3);
   params.append("category_ids[2]", 5);
-  const data = await fetch(`https://kairete.net/api/blog-entries?${params}`, {
-    method: "GET",
-    headers: {
-      "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
-      "XF-Api-User": msgData.userId,
-    },
-  });
-  const dataJSON = await data.json();
-  let sendData = dataJSON["blogEntryItems"].slice(0, 10).map((item) => {
-    return {
-      title: item?.title,
-      thumbnail: item?.CoverImage?.thumbnail_url,
-      content: item?.message_plain_text,
-      url: item?.view_url,
-    };
-  });
   // send message to user multiple message combine each object in 1 message
   users.forEach(async (user) => {
+    const data = await fetch(`https://kairete.net/api/blog-entries?${params}`, {
+      method: "GET",
+      headers: {
+        "XF-Api-Key": "Bj-iF2DqxqJcBEolg9H6Qjp94ekWVM1Y",
+        "XF-Api-User": user.user_id,
+      },
+    });
+    const dataJSON = await data.json();
+    let sendData = dataJSON["blogEntryItems"].slice(0, 10).map((item) => {
+      return {
+        title: item?.title,
+        thumbnail: item?.CoverImage?.thumbnail_url,
+        content: item?.message_plain_text,
+        url: item?.view_url,
+      };
+    });
     for await (const item of sendData) {
       try {
         const replyMarkup = bot.inlineKeyboard([
@@ -547,8 +548,8 @@ const botCron = async () => {
         await bot.sendMessage(
           user.telegram_id,
           `${item.title}
-    
-    ${item.content.slice(0, 300)}`,
+
+      ${item.content.slice(0, 300)}`,
           {
             replyMarkup,
           }
@@ -561,7 +562,7 @@ const botCron = async () => {
   return;
 };
 // run every 6am everyday Italy time
-cron.schedule("10 10 * * *", botCron, {
+cron.schedule("13 10 * * *", botCron, {
   scheduled: true,
   timezone: "Europe/Rome",
 });
